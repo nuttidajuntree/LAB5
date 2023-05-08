@@ -44,29 +44,22 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 uint8_t RxBuffer[20];
-uint8_t TxBuffer[40];
-uint8_t menu_Button_Status[110];
-uint8_t main_menu[] = "\n\n   _ Welcome to CAT's Control _\r\n\n\n"
+uint8_t TxBuffer[360];
+uint8_t main_menu[] = "\n\n\n   _ Welcome to CAT's Control _\r\n\n\n\n"
 "             MAIN MENU\r\n\n"
 "      button         command\r\n"
 "   ----------------------------\r\n"
 "      0          LED CONTROL\r\n"
-"      1         BUTTON STATUS\r\n\n"
-"\n Please press the button .  .  .\r\n";
-
-uint8_t menu_LED_Control[] ="\n         LED CONTROL MENU\r\n\n"
-"      button         command\r\n"
-"   ----------------------------\r\n"
-"       a        Speed Up +1 Hz\r\n"
-"       s       Speed Down -1 Hz\r\n"
-"       d            On/Off\r\n"
-"\n Please press the button .  .  .\r\n"
-"\n                     Press 'x' to Back.\r\n";
-uint8_t last_count = 0;
-uint8_t error_Button[] = "Error Button\r\n";
+"      1         BUTTON STATUS\r\n\n\n"
+"\n Please press the button .  .  .\r\n\n";
 uint8_t State_UART[3];
-uint16_t Hz_LED = 100;
+uint8_t Hz_LED = 1;
 uint8_t Hz_LED_State = 1;   // LED on
+uint8_t Status_Button[10];
+uint8_t last_status = 0;
+uint8_t current_status = 0;
+float Time = 500;
+uint8_t count = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -113,7 +106,7 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_UART_Receive_IT(&huart2, RxBuffer, 1);		// start Interrupt
-  HAL_UART_Transmit_IT(&huart2, main_menu, 223);
+  HAL_UART_Transmit_IT(&huart2, main_menu, 227);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -121,55 +114,6 @@ int main(void)
   while (1)
   {
 	  DummyTask(Hz_LED);
-	  static uint32_t timestamp_1=0;
-	  if(HAL_GetTick()>=timestamp_1)
-	  {
-		  timestamp_1 = HAL_GetTick()+100;
-		  if(RxBuffer[0] != last_count){
-			  if(RxBuffer[0] == '0' && State_UART[0] == '\0'){
-				  HAL_UART_Transmit_IT(&huart2, menu_LED_Control, 263);
-				  State_UART[0] = '0';
-			  }
-			  else if(RxBuffer[0] == '1' && State_UART[0] == '\0'){
-				  sprintf((char*)menu_Button_Status,"\n\n\n          BUTTON STATUS\r\n"
-						  "\n       button status : %d\r\n\n\n\n"
-						  "                     Press 'x' to Back.\r\n\n",Hz_LED);
-				  HAL_UART_Transmit_IT(&huart2, menu_Button_Status, 100);
-				  State_UART[0] = '1';
-			  }
-			  else if(RxBuffer[0] == 'a' && State_UART[0] == '0'){
-				  State_UART[1] = 'a';
-				  Hz_LED += 1;
-			  }
-			  else if(RxBuffer[0] == 's' && State_UART[0] == '0'){
-				  State_UART[1] = 's';
-				  Hz_LED -= 1;
-			  }
-			  else if(RxBuffer[0] == 'd' && State_UART[0] == '0'){
-				  State_UART[1] = 'd';
-				  if(Hz_LED_State == 1){
-					  Hz_LED_State = 0;
-				  }
-				  else if(Hz_LED_State == 0){
-					  Hz_LED_State = 1;
-				  }
-			  }
-			  else if(RxBuffer[0] == 'x' && (State_UART[0] == '0' || State_UART[0] == '1')){
-				  HAL_UART_Transmit_IT(&huart2, main_menu, 223);
-				  State_UART[0] = '\0';
-			  }
-			  else if(RxBuffer[0] != '1' && RxBuffer[0] != '0'  && State_UART[0] == '\0'){
-				  HAL_UART_Transmit_IT(&huart2, error_Button, 15);
-			  }
-			  else if(RxBuffer[1] != 'a' && RxBuffer[1] != 's' && RxBuffer[1] != 'd' && RxBuffer[1] != 'x' && State_UART[0] == '0'){
-				  HAL_UART_Transmit_IT(&huart2, error_Button, 15);
-			  }
-			  else if(RxBuffer[1] != 'x' && State_UART[0] == '1'){
-				  HAL_UART_Transmit_IT(&huart2, error_Button, 15);
-			  }
-		  }
-		  last_count = RxBuffer[0];
-	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -295,15 +239,25 @@ void DummyTask(uint16_t Hz_LED)
 	static uint32_t timestamp=0;
 	if(HAL_GetTick()>=timestamp)
 	{
-		timestamp = HAL_GetTick()+Hz_LED;
+		Time = (1.0/Hz_LED)*500.0;		// 1 Hz = 500 ms on & 500 ms off
+		timestamp = HAL_GetTick()+Time;
 		if(Hz_LED_State == 0){
 			HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 		}
 		else if(Hz_LED_State == 1){
 			HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
 		}
+		//current_status = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13);
 	}
 }
+
+/*void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	if(GPIO_Pin == GPIO_PIN_13){
+		count += 1;
+		//last_status = current_status;
+	}
+}*/
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
@@ -311,7 +265,122 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	{
 		RxBuffer[1] = '\0';
 
-		sprintf((char*)TxBuffer,"\n\r Button pressed : %s\r\n",RxBuffer);
+	    if(RxBuffer[0] == '0' && State_UART[0] == '\0'){
+	    	sprintf((char*)TxBuffer,"\n\r Button pressed : %s\r\n\n\n"
+	    			"         LED CONTROL MENU\r\n\n      button         command\r\n"
+	    			"   ----------------------------\r\n"
+	    			"       a        Speed Up +1 Hz\r\n"
+	    			"       s       Speed Down -1 Hz\r\n"
+	    			"       d            On/Off\r\n\n"
+	    			"\n Please press the button .  .  .\r\n\n"
+	    			"\n                     Press 'x' to Back.\r\n",RxBuffer);
+		    State_UART[0] = '0';
+	    }
+	    else if(RxBuffer[0] == '1' && State_UART[0] == '\0'){
+	    	if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == 0){    // 0 = press 1 = unpress
+				Status_Button[0] = 'P';Status_Button[1] = 'r';Status_Button[2] = 'e';
+				Status_Button[3] = 's';Status_Button[4] = 's';Status_Button[5] = '\0';
+			}
+			else{
+				Status_Button[0] = 'U';Status_Button[1] = 'n';Status_Button[2] = 'P';
+				Status_Button[3] = 'r';Status_Button[4] = 'e';Status_Button[5] = 's';
+				Status_Button[6] = 's';Status_Button[7] = '\0';
+			}
+		    sprintf((char*)TxBuffer,"\n\n\r Button pressed : %s\r\n"
+		    		"\n\n\n          BUTTON STATUS\r\n"
+		    		"\n       button status : %s\r\n\n\n\n"
+		    		"                     Press 'x' to Back.\r\n\n",RxBuffer,Status_Button);
+		    State_UART[0] = '1';
+	    }
+	    else if(RxBuffer[0] == 'a' && State_UART[0] == '0'){
+	    	Hz_LED += 1;		// 1 Hz = 1000 msec
+	    	State_UART[1] = 'a';
+	    	sprintf((char*)TxBuffer,"\n\r Button pressed : %s\r\n\n\n"
+	    			"         LED CONTROL MENU\r\n\n      button         command\r\n"
+	    			"   ----------------------------\r\n"
+	    			"       a        Speed Up +1 Hz\r\n"
+	    			"       s       Speed Down -1 Hz\r\n"
+	    			"       d            On/Off\r\n\n"
+	    			"    Frequency of LED : %d\r\n"
+	    			"\n Please press the button .  .  .\r\n"
+	    			"\n                     Press 'x' to Back.\r\n",RxBuffer,Hz_LED);
+	    }
+	    else if(RxBuffer[0] == 's' && State_UART[0] == '0'){
+	    	Hz_LED -= 1;
+	    	State_UART[1] = 's';
+	    	sprintf((char*)TxBuffer,"\n\r Button pressed : %s\r\n\n\n"
+	    			"         LED CONTROL MENU\r\n\n      button         command\r\n"
+	    			"   ----------------------------\r\n"
+	    			"       a        Speed Up +1 Hz\r\n"
+	    			"       s       Speed Down -1 Hz\r\n"
+	    			"       d            On/Off\r\n\n"
+	    			"     Frequency of LED : %d\r\n"
+	    			"\n Please press the button .  .  .\r\n"
+	    			"\n                     Press 'x' to Back.\r\n",RxBuffer,Hz_LED);
+	    }
+	    else if(RxBuffer[0] == 'd' && State_UART[0] == '0'){
+		    State_UART[1] = 'd';
+		    if(Hz_LED_State == 1){		// on to off
+		    	sprintf((char*)TxBuffer,"\n\r Button pressed : %s\r\n\n\n"
+		    			"         LED CONTROL MENU\r\n\n      button         command\r\n"
+		    			"   ----------------------------\r\n"
+		    			"       a        Speed Up +1 Hz\r\n"
+		    			"       s       Speed Down -1 Hz\r\n"
+		    			"       d            On/Off\r\n\n"
+		    			"     State LED : Off\r\n"
+		    			"\n Please press the button .  .  .\r\n"
+		    			"\n                     Press 'x' to Back.\r\n",RxBuffer);
+			    Hz_LED_State = 0;
+		    }
+		    else if(Hz_LED_State == 0){		// off to on
+		    	sprintf((char*)TxBuffer,"\n\r Button pressed : %s\r\n\n\n"
+		    			"         LED CONTROL MENU\r\n\n      button         command\r\n"
+		    			"   ----------------------------\r\n"
+		    			"       a        Speed Up +1 Hz\r\n"
+		    			"       s       Speed Down -1 Hz\r\n"
+		    			"       d            On/Off\r\n\n"
+		    			"     State LED : On\r\n"
+		    			"\n Please press the button .  .  .\r\n"
+		    			"\n                     Press 'x' to Back.\r\n",RxBuffer);
+			    Hz_LED_State = 1;
+		    }
+	    }
+	    else if(RxBuffer[0] == 'x' && (State_UART[0] == '0' || State_UART[0] == '1')){
+	    	sprintf((char*)TxBuffer,"\n\r Button pressed : %s\r\n"
+	    			"\n   _ Welcome to CAT's Control _\r\n\n\n\n"
+	    			"             MAIN MENU\r\n\n      button         command\r\n"
+	    			"   ----------------------------\r\n"
+	    			"      0          LED CONTROL\r\n"
+	    			"      1         BUTTON STATUS\r\n\n"
+	    			"\n Please press the button .  .  .\r\n\n",RxBuffer);
+		    State_UART[0] = '\0';
+	    }
+	    else if(RxBuffer[0] != '1' && RxBuffer[0] != '0'  && State_UART[0] == '\0'){
+	    	sprintf((char*)TxBuffer,"\n\r Button pressed : %s\r\n\n  .Error Button.\r\n\n"
+	    			"\n   _ Welcome to CAT's Control _\r\n\n\n\n"
+					"             MAIN MENU\r\n\n      button         command\r\n"
+					"   ----------------------------\r\n"
+					"      0          LED CONTROL\r\n"
+					"      1         BUTTON STATUS\r\n\n"
+					"\n Please press the button .  .  .\r\n\n",RxBuffer);
+	    }
+	    else if(RxBuffer[0] != 'a' && RxBuffer[0] != 's' && RxBuffer[0] != 'd' && RxBuffer[0] != 'x' && State_UART[0] == '0'){
+	    	sprintf((char*)TxBuffer,"\n\r Button pressed : %s\r\n\n  .Error Button.\r\n\n"
+	    			"         LED CONTROL MENU\r\n\n      button         command\r\n"
+					"   ----------------------------\r\n"
+					"       a        Speed Up +1 Hz\r\n"
+					"       s       Speed Down -1 Hz\r\n"
+					"       d            On/Off\r\n\n"
+					"\n Please press the button .  .  .\r\n"
+					"\n                     Press 'x' to Back.\r\n",RxBuffer);
+	    }
+	    else if(RxBuffer[0] != 'x' && State_UART[0] != '1'){
+	    	sprintf((char*)TxBuffer,"\n\r Button pressed : %s\r\n\n  .Error Button.\r\n\n"
+	    			"\n\n\n          BUTTON STATUS\r\n"
+					"\n       button status : %s\r\n\n\n\n"
+					"                     Press 'x' to Back.\r\n\n",RxBuffer,Status_Button);
+	    }
+
 		HAL_UART_Transmit_IT(&huart2, TxBuffer, strlen((char*)TxBuffer));
 		HAL_UART_Receive_IT(&huart2, RxBuffer, 1);
 	}
