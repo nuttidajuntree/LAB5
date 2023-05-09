@@ -107,6 +107,9 @@ int main(void)
   /* USER CODE BEGIN 2 */
   HAL_UART_Receive_IT(&huart2, RxBuffer, 1);		// start Interrupt
   HAL_UART_Transmit_IT(&huart2, main_menu, 227);
+  Status_Button[0] = 'U';Status_Button[1] = 'n';Status_Button[2] = 'P';
+  Status_Button[3] = 'r';Status_Button[4] = 'e';Status_Button[5] = 's';
+  Status_Button[6] = 's';Status_Button[7] = '\0';
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -218,11 +221,11 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : B1_Pin */
-  GPIO_InitStruct.Pin = B1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  /*Configure GPIO pin : PC13 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LD2_Pin */
   GPIO_InitStruct.Pin = LD2_Pin;
@@ -230,6 +233,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 }
 
@@ -251,13 +258,28 @@ void DummyTask(uint16_t Hz_LED)
 	}
 }
 
-/*void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	if(GPIO_Pin == GPIO_PIN_13){
-		count += 1;
-		//last_status = current_status;
+		if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == 0){
+			count = 3;
+			Status_Button[0] = 'P';Status_Button[1] = 'r';Status_Button[2] = 'e';
+			Status_Button[3] = 's';Status_Button[4] = 's';Status_Button[5] = '\0';
+		}
+		else if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == 1){
+			count = 4;
+			Status_Button[0] = 'U';Status_Button[1] = 'n';Status_Button[2] = 'P';
+			Status_Button[3] = 'r';Status_Button[4] = 'e';Status_Button[5] = 's';
+			Status_Button[6] = 's';Status_Button[7] = '\0';
+		}
+		sprintf((char*)TxBuffer,"\n\n\r Button pressed : %s\r\n"
+				"\n\n\n\n          BUTTON STATUS\r\n"
+				"\n       button status : %s\r\n\n\n\n\n"
+				"                     Press 'x' to Back.\r\n\n",RxBuffer,Status_Button);
+		HAL_UART_Transmit_IT(&huart2, TxBuffer, strlen((char*)TxBuffer));
+		HAL_UART_Receive_IT(&huart2, RxBuffer, 1);
 	}
-}*/
+}
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
@@ -277,20 +299,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		    State_UART[0] = '0';
 	    }
 	    else if(RxBuffer[0] == '1' && State_UART[0] == '\0'){
-	    	if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == 0){    // 0 = press 1 = unpress
-				Status_Button[0] = 'P';Status_Button[1] = 'r';Status_Button[2] = 'e';
-				Status_Button[3] = 's';Status_Button[4] = 's';Status_Button[5] = '\0';
-			}
-			else{
-				Status_Button[0] = 'U';Status_Button[1] = 'n';Status_Button[2] = 'P';
-				Status_Button[3] = 'r';Status_Button[4] = 'e';Status_Button[5] = 's';
-				Status_Button[6] = 's';Status_Button[7] = '\0';
-			}
-		    sprintf((char*)TxBuffer,"\n\n\r Button pressed : %s\r\n"
-		    		"\n\n\n          BUTTON STATUS\r\n"
-		    		"\n       button status : %s\r\n\n\n\n"
-		    		"                     Press 'x' to Back.\r\n\n",RxBuffer,Status_Button);
-		    State_UART[0] = '1';
+	    	sprintf((char*)TxBuffer,"\n\n\r Button pressed : %s\r\n"
+					"\n\n\n\n          BUTTON STATUS\r\n"
+					"\n       button status : %s\r\n\n\n\n\n"
+					"                     Press 'x' to Back.\r\n\n",RxBuffer,Status_Button);
+	    	State_UART[0] = '1';
 	    }
 	    else if(RxBuffer[0] == 'a' && State_UART[0] == '0'){
 	    	Hz_LED += 1;		// 1 Hz = 1000 msec
@@ -356,13 +369,13 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		    State_UART[0] = '\0';
 	    }
 	    else if(RxBuffer[0] != '1' && RxBuffer[0] != '0'  && State_UART[0] == '\0'){
-	    	sprintf((char*)TxBuffer,"\n\r Button pressed : %s\r\n\n  .Error Button.\r\n\n"
-	    			"\n   _ Welcome to CAT's Control _\r\n\n\n\n"
+	    	sprintf((char*)TxBuffer,"\n\r Button pressed : %s\r\n\n  .Error Button.\r\n"
+	    			"\n   _ Welcome to CAT's Control _\r\n\n\n"
 					"             MAIN MENU\r\n\n      button         command\r\n"
 					"   ----------------------------\r\n"
 					"      0          LED CONTROL\r\n"
 					"      1         BUTTON STATUS\r\n\n"
-					"\n Please press the button .  .  .\r\n\n",RxBuffer);
+					"\n Please press the button .  .  .\r\n",RxBuffer);
 	    }
 	    else if(RxBuffer[0] != 'a' && RxBuffer[0] != 's' && RxBuffer[0] != 'd' && RxBuffer[0] != 'x' && State_UART[0] == '0'){
 	    	sprintf((char*)TxBuffer,"\n\r Button pressed : %s\r\n\n  .Error Button.\r\n\n"
@@ -374,13 +387,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 					"\n Please press the button .  .  .\r\n"
 					"\n                     Press 'x' to Back.\r\n",RxBuffer);
 	    }
-	    else if(RxBuffer[0] != 'x' && State_UART[0] != '1'){
+	    else if(RxBuffer[0] != 'x' && State_UART[0] == '1'){
 	    	sprintf((char*)TxBuffer,"\n\r Button pressed : %s\r\n\n  .Error Button.\r\n\n"
 	    			"\n\n\n          BUTTON STATUS\r\n"
 					"\n       button status : %s\r\n\n\n\n"
 					"                     Press 'x' to Back.\r\n\n",RxBuffer,Status_Button);
 	    }
-
 		HAL_UART_Transmit_IT(&huart2, TxBuffer, strlen((char*)TxBuffer));
 		HAL_UART_Receive_IT(&huart2, RxBuffer, 1);
 	}
