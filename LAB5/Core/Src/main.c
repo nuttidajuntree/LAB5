@@ -117,6 +117,7 @@ int main(void)
   while (1)
   {
 	  DummyTask(Hz_LED);
+	  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_0);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -219,7 +220,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0|LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
@@ -227,12 +228,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LD2_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin;
+  /*Configure GPIO pins : PA0 LD2_Pin */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|LD2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
@@ -254,30 +255,33 @@ void DummyTask(uint16_t Hz_LED)
 		else if(Hz_LED_State == 1){
 			HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
 		}
-		//current_status = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13);
 	}
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	if(GPIO_Pin == GPIO_PIN_13){
-		if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == 0){
-			count = 3;
+		if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == 0 && State_UART[0] == '1'){
 			Status_Button[0] = 'P';Status_Button[1] = 'r';Status_Button[2] = 'e';
 			Status_Button[3] = 's';Status_Button[4] = 's';Status_Button[5] = '\0';
+			sprintf((char*)TxBuffer,"\n\n\r Button pressed : %s\r\n"
+					"\n\n\n\n          BUTTON STATUS\r\n"
+					"\n       button status : %s\r\n\n\n\n\n"
+					"                     Press 'x' to Back.\r\n\n",RxBuffer,Status_Button);
+			HAL_UART_Transmit_IT(&huart2, TxBuffer, strlen((char*)TxBuffer));
+			HAL_UART_Receive_IT(&huart2, RxBuffer, 1);
 		}
-		else if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == 1){
-			count = 4;
+		else if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == 1 && State_UART[0] == '1'){
 			Status_Button[0] = 'U';Status_Button[1] = 'n';Status_Button[2] = 'P';
 			Status_Button[3] = 'r';Status_Button[4] = 'e';Status_Button[5] = 's';
 			Status_Button[6] = 's';Status_Button[7] = '\0';
+			sprintf((char*)TxBuffer,"\n\n\r Button pressed : %s\r\n"
+					"\n\n\n\n          BUTTON STATUS\r\n"
+					"\n       button status : %s\r\n\n\n\n\n"
+					"                     Press 'x' to Back.\r\n\n",RxBuffer,Status_Button);
+			HAL_UART_Transmit_IT(&huart2, TxBuffer, strlen((char*)TxBuffer));
+			HAL_UART_Receive_IT(&huart2, RxBuffer, 1);
 		}
-		sprintf((char*)TxBuffer,"\n\n\r Button pressed : %s\r\n"
-				"\n\n\n\n          BUTTON STATUS\r\n"
-				"\n       button status : %s\r\n\n\n\n\n"
-				"                     Press 'x' to Back.\r\n\n",RxBuffer,Status_Button);
-		HAL_UART_Transmit_IT(&huart2, TxBuffer, strlen((char*)TxBuffer));
-		HAL_UART_Receive_IT(&huart2, RxBuffer, 1);
 	}
 }
 
