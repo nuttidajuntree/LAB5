@@ -56,10 +56,7 @@ uint8_t State_UART[3];
 uint8_t Hz_LED = 1;
 uint8_t Hz_LED_State = 1;   // LED on
 uint8_t Status_Button[10];
-uint8_t last_status = 0;
-uint8_t current_status = 0;
 float Time = 500;
-uint8_t count = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -106,8 +103,8 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_UART_Receive_IT(&huart2, RxBuffer, 1);		// start Interrupt
-  HAL_UART_Transmit_IT(&huart2, main_menu, 227);
-  Status_Button[0] = 'U';Status_Button[1] = 'n';Status_Button[2] = 'P';
+  HAL_UART_Transmit_IT(&huart2, main_menu, 227);	// print UART main menu
+  Status_Button[0] = 'U';Status_Button[1] = 'n';Status_Button[2] = 'P';		// set initial status of button
   Status_Button[3] = 'r';Status_Button[4] = 'e';Status_Button[5] = 's';
   Status_Button[6] = 's';Status_Button[7] = '\0';
   /* USER CODE END 2 */
@@ -116,8 +113,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  DummyTask(Hz_LED);
-	  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_0);
+	  DummyTask(Hz_LED);	// toggle LED
+	  HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_0);	// for logic analyzer
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -247,12 +244,12 @@ void DummyTask(uint16_t Hz_LED)
 	static uint32_t timestamp=0;
 	if(HAL_GetTick()>=timestamp)
 	{
-		Time = (1.0/Hz_LED)*500.0;		// 1 Hz = 500 ms on & 500 ms off
+		Time = (1.0/Hz_LED)*500.0;			// 1 Hz = 500 ms on & 500 ms off
 		timestamp = HAL_GetTick()+Time;
-		if(Hz_LED_State == 0){
+		if(Hz_LED_State == 0){				// LED off
 			HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 		}
-		else if(Hz_LED_State == 1){
+		else if(Hz_LED_State == 1){			// LED toggle
 			HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
 		}
 	}
@@ -260,7 +257,7 @@ void DummyTask(uint16_t Hz_LED)
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	if(GPIO_Pin == GPIO_PIN_13){
+	if(GPIO_Pin == GPIO_PIN_13){		// interrupt by button
 		if(HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == 0 && State_UART[0] == '1'){
 			Status_Button[0] = 'P';Status_Button[1] = 'r';Status_Button[2] = 'e';
 			Status_Button[3] = 's';Status_Button[4] = 's';Status_Button[5] = '\0';
@@ -287,7 +284,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-	if(huart == &huart2)
+	if(huart == &huart2)			// interrupt by UART
 	{
 		RxBuffer[1] = '\0';
 
